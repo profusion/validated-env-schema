@@ -75,7 +75,7 @@ yarn add ajv-formats
 
 The packages such as `dotenv` can be used with this software
 without any specific configuration, just require those packages,
-either explicit or using `node -r node -r dotenv/config app.js`
+either explicit or using `node -r dotenv/config app.js`
 
 
 ## Similar Packages
