@@ -10,7 +10,7 @@ import type {
   EnvSchemaPartialValues,
 } from './types';
 
-import { addErrors } from './errors';
+import { addErrors, assertIsError } from './errors';
 import dbg, { isDebugEnabled } from './dbg';
 
 export const ajv = new Ajv({
@@ -22,12 +22,20 @@ export const ajv = new Ajv({
 });
 
 /* istanbul ignore next */
+const assertErrorIsModuleNotFoundException: (
+  error: unknown,
+) => asserts error is NodeJS.ErrnoException = error => {
+  if (!error || typeof error !== 'object' || !('code' in error)) throw error;
+  if (error.code !== 'MODULE_NOT_FOUND') throw error;
+};
+
+/* istanbul ignore next */
 try {
   // ajv-formats is a peer dependency, it's slightly heavy and eventually unused
   // eslint-disable-next-line import/no-unresolved, @typescript-eslint/no-var-requires
   require('ajv-formats')(ajv);
 } catch (error) {
-  if (error.code !== 'MODULE_NOT_FOUND') throw error;
+  assertErrorIsModuleNotFoundException(error);
   dbg(
     'ajv-formats module is not installed, JSON Schema string formats will not be supported.',
   );
@@ -98,6 +106,7 @@ New Value.....: ${JSON.stringify(newValue)}
         );
         // eslint-disable-next-line no-param-reassign
         delete values[key];
+        assertIsError(e);
         errors = addErrors(errors, key, e);
       }
     });

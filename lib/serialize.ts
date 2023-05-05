@@ -12,7 +12,7 @@ import type {
   EnvSchemaPartialValues,
 } from './types';
 import dbg from './dbg';
-import { addErrors } from './errors';
+import { addErrors, assertIsError } from './errors';
 
 const defaultSerialize = (
   value: JSONSchema7Type,
@@ -31,48 +31,50 @@ type EnvSchemaSerialize<S extends BaseEnvSchema> = (
 ) => [EnvSchemaPartialValues<S>, EnvSchemaMaybeErrors<S>];
 
 export default <S extends BaseEnvSchema>(
-  schema: Readonly<S>,
-  properties: Readonly<EnvSchemaProperties<S>>,
-  customize: EnvSchemaCustomSerializers<S> | undefined,
-): EnvSchemaSerialize<S> => (
-  givenValues: Readonly<EnvSchemaPartialValues<S>>,
-  container: Record<string, string | undefined>,
-  givenErrors: EnvSchemaMaybeErrors<S>,
-): [EnvSchemaPartialValues<S>, EnvSchemaMaybeErrors<S>] =>
-  properties.reduce(
-    (
-      [values, initialErrors],
-      [key, propertySchema],
-    ): [EnvSchemaPartialValues<S>, EnvSchemaMaybeErrors<S>] => {
-      type K = typeof key;
-      const value = values[key];
-      let errors = initialErrors;
-      if (value !== undefined) {
-        const serialize =
-          // we already checked for not undefined, but TS doesn't get it :-(
-          ((customize && customize[key]) as EnvSchemaSerializeFn<S, K>) ||
-          defaultSerialize;
-
-        try {
-          // eslint-disable-next-line no-param-reassign
-          container[key] = serialize(
+    schema: Readonly<S>,
+    properties: Readonly<EnvSchemaProperties<S>>,
+    customize: EnvSchemaCustomSerializers<S> | undefined,
+  ): EnvSchemaSerialize<S> =>
+  (
+    givenValues: Readonly<EnvSchemaPartialValues<S>>,
+    container: Record<string, string | undefined>,
+    givenErrors: EnvSchemaMaybeErrors<S>,
+  ): [EnvSchemaPartialValues<S>, EnvSchemaMaybeErrors<S>] =>
+    properties.reduce(
+      (
+        [values, initialErrors],
+        [key, propertySchema],
+      ): [EnvSchemaPartialValues<S>, EnvSchemaMaybeErrors<S>] => {
+        type K = typeof key;
+        const value = values[key];
+        let errors = initialErrors;
+        if (value !== undefined) {
+          const serialize =
             // we already checked for not undefined, but TS doesn't get it :-(
-            value as Parameters<typeof serialize>[0],
-            propertySchema,
-            key,
-            schema,
-          );
-        } catch (e) {
-          dbg(`failed to serialize "${key}": ${e}`, e);
+            ((customize && customize[key]) as EnvSchemaSerializeFn<S, K>) ||
+            defaultSerialize;
+
+          try {
+            // eslint-disable-next-line no-param-reassign
+            container[key] = serialize(
+              // we already checked for not undefined, but TS doesn't get it :-(
+              value as Parameters<typeof serialize>[0],
+              propertySchema,
+              key,
+              schema,
+            );
+          } catch (e) {
+            dbg(`failed to serialize "${key}": ${e}`, e);
+            // eslint-disable-next-line no-param-reassign
+            delete container[key];
+            assertIsError(e);
+            errors = addErrors(errors, key, e);
+          }
+        } else {
           // eslint-disable-next-line no-param-reassign
           delete container[key];
-          errors = addErrors(errors, key, e);
         }
-      } else {
-        // eslint-disable-next-line no-param-reassign
-        delete container[key];
-      }
-      return [values, errors];
-    },
-    [givenValues, givenErrors],
-  );
+        return [values, errors];
+      },
+      [givenValues, givenErrors],
+    );
