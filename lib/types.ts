@@ -33,7 +33,7 @@ export type EnvSchemaPartialValues<S extends BaseEnvSchema> = Partial<
 
 export type EnvSchemaPropertyValue<
   S extends BaseEnvSchema,
-  K extends keyof S['properties']
+  K extends keyof S['properties'],
 > = K extends keyof TypeFromJSONSchema<S> ? TypeFromJSONSchema<S>[K] : never;
 
 /**
@@ -42,11 +42,9 @@ export type EnvSchemaPropertyValue<
  *
  * Multiple phases may produce errors, then it's stored as array.
  */
-export type EnvSchemaErrors<S extends BaseEnvSchema> = Partial<
-  {
-    [K in keyof S['properties'] | '$other']: Error[];
-  }
->;
+export type EnvSchemaErrors<S extends BaseEnvSchema> = Partial<{
+  [K in keyof S['properties'] | '$other']: Error[];
+}>;
 export type EnvSchemaMaybeErrors<S extends BaseEnvSchema> =
   | EnvSchemaErrors<S>
   | undefined;
@@ -59,7 +57,7 @@ export type EnvSchemaMaybeErrors<S extends BaseEnvSchema> =
  */
 export type EnvSchemaParserFn<
   S extends BaseEnvSchema,
-  K extends keyof S['properties']
+  K extends keyof S['properties'],
 > = (
   str: string,
   propertySchema: Readonly<S['properties'][K]>,
@@ -74,11 +72,9 @@ export type EnvSchemaParserFn<
  * keep the original value as a string.
  */
 export type EnvSchemaCustomParsers<S extends BaseEnvSchema> = Readonly<
-  Partial<
-    {
-      [K in keyof S['properties']]: EnvSchemaParserFn<S, K>;
-    }
-  >
+  Partial<{
+    [K in keyof S['properties']]: EnvSchemaParserFn<S, K>;
+  }>
 >;
 
 /**
@@ -88,7 +84,7 @@ export type EnvSchemaCustomParsers<S extends BaseEnvSchema> = Readonly<
  */
 export type EnvSchemaSerializeFn<
   S extends BaseEnvSchema,
-  K extends keyof S['properties']
+  K extends keyof S['properties'],
 > = (
   value: Exclude<EnvSchemaPropertyValue<S, K>, undefined>,
   propertySchema: Readonly<S['properties'][K]>,
@@ -103,11 +99,9 @@ export type EnvSchemaSerializeFn<
  * unless it's already a string.
  */
 export type EnvSchemaCustomSerializers<S extends BaseEnvSchema> = Readonly<
-  Partial<
-    {
-      [K in keyof S['properties']]: EnvSchemaSerializeFn<S, K>;
-    }
-  >
+  Partial<{
+    [K in keyof S['properties']]: EnvSchemaSerializeFn<S, K>;
+  }>
 >;
 
 /**
@@ -124,7 +118,7 @@ export type EnvSchemaCustomSerializers<S extends BaseEnvSchema> = Readonly<
  */
 export type EnvSchemaPostValidateFn<
   S extends BaseEnvSchema,
-  K extends keyof S['properties']
+  K extends keyof S['properties'],
 > = (
   value: EnvSchemaPropertyValue<S, K> | undefined,
   propertySchema: S['properties'][K],
@@ -141,11 +135,9 @@ export type EnvSchemaPostValidateFn<
  * Each validator will receive the other properties for convenience.
  */
 export type EnvSchemaCustomPostValidators<S extends BaseEnvSchema> = Readonly<
-  Partial<
-    {
-      [K in keyof S['properties']]: EnvSchemaPostValidateFn<S, K>;
-    }
-  >
+  Partial<{
+    [K in keyof S['properties']]: EnvSchemaPostValidateFn<S, K>;
+  }>
 >;
 
 /**
@@ -156,7 +148,7 @@ export type EnvSchemaCustomPostValidators<S extends BaseEnvSchema> = Readonly<
 export type EnvSchemaConvertFn<
   S extends BaseEnvSchema,
   K extends keyof S['properties'],
-  R
+  R,
 > = (
   value: EnvSchemaPropertyValue<S, K> | undefined,
   propertySchema: S['properties'][K],
@@ -174,13 +166,11 @@ export type EnvSchemaConvertFn<
  * otherwise it may be converted to high-level type, such as `Date`.
  */
 export type EnvSchemaCustomConverters<S extends BaseEnvSchema> = Readonly<
-  Partial<
-    {
-      // we must match any return type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      [K in keyof S['properties']]: EnvSchemaConvertFn<S, K, any>;
-    }
-  >
+  Partial<{
+    // we must match any return type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    [K in keyof S['properties']]: EnvSchemaConvertFn<S, K, any>;
+  }>
 >;
 
 /**
@@ -202,7 +192,7 @@ export type EnvSchemaCustomizations<S extends BaseEnvSchema> =
 type EnvSchemaConvertedValue<
   S extends BaseEnvSchema,
   K extends keyof S['properties'],
-  Convert
+  Convert,
 > = Convert extends EnvSchemaConvertFn<S, K, infer N>
   ? N
   : K extends keyof TypeFromJSONSchema<S>
@@ -211,7 +201,7 @@ type EnvSchemaConvertedValue<
 
 type EnvSchemaConvertedValuesWithConvertInternal<
   S extends BaseEnvSchema,
-  Converters extends EnvSchemaCustomConverters<S>
+  Converters extends EnvSchemaCustomConverters<S>,
 > = {
   -readonly [K in keyof S['properties']]: EnvSchemaConvertedValue<
     S,
@@ -222,14 +212,14 @@ type EnvSchemaConvertedValuesWithConvertInternal<
 
 export type EnvSchemaConverters<
   S extends BaseEnvSchema,
-  Customizations extends EnvSchemaCustomizations<S>
+  Customizations extends EnvSchemaCustomizations<S>,
 > = Customizations extends { readonly convert: EnvSchemaCustomConverters<S> }
   ? Customizations['convert']
   : undefined;
 
 export type EnvSchemaConvertedPartialValuesWithConvert<
   S extends BaseEnvSchema,
-  Converters extends EnvSchemaCustomConverters<S> | undefined
+  Converters extends EnvSchemaCustomConverters<S> | undefined,
 > = Converters extends EnvSchemaCustomConverters<S>
   ? Partial<EnvSchemaConvertedValuesWithConvertInternal<S, Converters>>
   : EnvSchemaPartialValues<S>;
@@ -240,7 +230,7 @@ export type EnvSchemaConvertedPartialValuesWithConvert<
  */
 export type EnvSchemaConvertedPartialValues<
   S extends BaseEnvSchema,
-  Customizations extends EnvSchemaCustomizations<S>
+  Customizations extends EnvSchemaCustomizations<S>,
 > = EnvSchemaConvertedPartialValuesWithConvert<
   S,
   EnvSchemaConverters<S, Customizations>
@@ -248,7 +238,7 @@ export type EnvSchemaConvertedPartialValues<
 
 export type EnvSchemaConvertedValuesWithConvert<
   S extends BaseEnvSchema,
-  Converters extends EnvSchemaCustomConverters<S> | undefined
+  Converters extends EnvSchemaCustomConverters<S> | undefined,
 > = Converters extends EnvSchemaCustomConverters<S>
   ? EnvSchemaConvertedValuesWithConvertInternal<S, Converters>
   : TypeFromJSONSchema<S>;
@@ -260,7 +250,7 @@ export type EnvSchemaConvertedValuesWithConvert<
  */
 export type EnvSchemaConvertedValues<
   S extends BaseEnvSchema,
-  Customizations extends EnvSchemaCustomizations<S>
+  Customizations extends EnvSchemaCustomizations<S>,
 > = EnvSchemaConvertedValuesWithConvert<
   S,
   EnvSchemaConverters<S, Customizations>

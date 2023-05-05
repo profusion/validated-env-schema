@@ -70,10 +70,10 @@ describe('createConvert', (): void => {
       OPT_VAR: '0x1fffffffffffff',
       REQ_VAR: '2021-01-02T12:34:56.000Z',
     };
-    const container: Record<string, string | undefined> = {
+    const container = {
       OPT_VAR: '0x1fffffffffffff',
       REQ_VAR: '2021-01-02T12:34:56.000Z',
-    };
+    } as const;
     const convert = createConvert(schema, schemaProperties(schema), {
       OPT_VAR: (
         value: string | undefined,
@@ -82,7 +82,7 @@ describe('createConvert', (): void => {
         allSchema: JSONSchema7,
         initialValues: EnvSchemaPartialValues<S>,
         errors: EnvSchemaMaybeErrors<S>,
-      ): BigInt | undefined =>
+      ): bigint | undefined =>
         typeof value === 'string' &&
         propertySchema === schema.properties.OPT_VAR &&
         key === 'OPT_VAR' &&
@@ -139,7 +139,7 @@ New Value.....: ${commonConvert.dateTime(container.REQ_VAR)}
         allSchema: JSONSchema7,
         initialValues: EnvSchemaPartialValues<S>,
         errors: EnvSchemaMaybeErrors<S>,
-      ): BigInt | undefined =>
+      ): bigint | undefined =>
         typeof value === 'string' &&
         propertySchema === schema.properties.OPT_VAR &&
         key === 'OPT_VAR' &&
@@ -177,7 +177,7 @@ New Value.....: ${commonConvert.dateTime(container.REQ_VAR)}
         allSchema: JSONSchema7,
         initialValues: EnvSchemaPartialValues<S>,
         errors: EnvSchemaMaybeErrors<S>,
-      ): BigInt | undefined =>
+      ): bigint | undefined =>
         typeof value === 'string' &&
         propertySchema === schema.properties.OPT_VAR &&
         key === 'OPT_VAR' &&
@@ -231,7 +231,7 @@ New Value.....: ${new Date(0)}
       REQ_VAR: '2021-01-02T12:34:56.000Z',
     };
     const convert = createConvert(schema, schemaProperties(schema), {
-      OPT_VAR: (): BigInt | undefined => undefined,
+      OPT_VAR: (): bigint | undefined => undefined,
       REQ_VAR: (): Date | undefined => undefined,
     });
     const consoleSpy = getConsoleMock();
@@ -265,7 +265,7 @@ New Value.....: ${new Date(0)}
     };
     const error = new Error('forced error');
     const convert = createConvert(schema, schemaProperties(schema), {
-      OPT_VAR: (): BigInt => {
+      OPT_VAR: (): bigint => {
         throw error;
       },
       REQ_VAR: (): Date => {
@@ -309,7 +309,7 @@ New Value.....: ${new Date(0)}
       schemaNoRequired,
       schemaProperties(schemaNoRequired),
       {
-        OPT_VAR: (): BigInt | undefined => undefined,
+        OPT_VAR: (): bigint | undefined => undefined,
         REQ_VAR: (): Date | undefined => undefined,
       },
     );

@@ -15,7 +15,7 @@ import dbg from './dbg';
 // DO NOT THROW HERE!
 type EnvSchemaConvert<
   S extends BaseEnvSchema,
-  Converters extends EnvSchemaCustomConverters<S> | undefined
+  Converters extends EnvSchemaCustomConverters<S> | undefined,
 > = (
   value: EnvSchemaPartialValues<S>,
   errors: EnvSchemaMaybeErrors<S>,
@@ -29,7 +29,7 @@ const noRequiredProperties: string[] = [];
 
 const createConvert = <
   S extends BaseEnvSchema,
-  Converters extends EnvSchemaCustomConverters<S>
+  Converters extends EnvSchemaCustomConverters<S>,
 >(
   schema: S,
   properties: Readonly<EnvSchemaProperties<S>>,
@@ -111,15 +111,14 @@ New Value.....: ${newValue}
             )}`,
         );
         removeValue(key);
-        errors = addErrors(errors, key, e);
+        errors = addErrors(errors, key, e as Error);
       }
     });
-
     requiredProperties.forEach(key => {
       if (values[key] === undefined) {
         errors = addErrors(
           errors,
-          key,
+          key as Extract<keyof S['properties'], string>,
           new Error(`required property "${key}" is undefined`),
         );
       }
@@ -139,14 +138,14 @@ const noConversion = <S extends BaseEnvSchema>(
 
 export default <
   S extends BaseEnvSchema,
-  Converters extends EnvSchemaCustomConverters<S> | undefined
+  Converters extends EnvSchemaCustomConverters<S> | undefined,
 >(
   schema: Readonly<S>,
   properties: Readonly<EnvSchemaProperties<S>>,
   customize: Converters,
 ): EnvSchemaConvert<S, Converters> =>
   customize === undefined
-    ? ((noConversion as unknown) as EnvSchemaConvert<S, Converters>)
+    ? (noConversion as unknown as EnvSchemaConvert<S, Converters>)
     : createConvert(
         schema,
         properties,

@@ -61,17 +61,18 @@ describe('validateEnvSchema', (): void => {
         REQ_VAR: 'bug',
       };
       const consoleSpy = getConsoleMock();
+      expect.hasAssertions();
       try {
         validateEnvSchema(schema, container);
-        expect(true).toBe(false); // should throw
       } catch (e) {
         expect(e).toBeInstanceOf(EnvSchemaValidationError);
-        expect(e.schema).toBe(schema);
-        expect(e.container).toBe(container);
-        expect(e.values).toEqual({
+        const err = e as EnvSchemaValidationError<typeof schema, undefined>;
+        expect(err.schema).toBe(schema);
+        expect(err.container).toBe(container);
+        expect(err.values).toEqual({
           OPT_VAR: 42, // default
         });
-        expect(e.errors).toEqual({
+        expect(err.errors).toEqual({
           REQ_VAR: [new Ajv.ValidationError([])],
         });
         expect(container).toEqual({
@@ -94,7 +95,7 @@ describe('validateEnvSchema', (): void => {
       const consoleSpy = getConsoleMock();
       const values = validateEnvSchema(schema, container, {
         convert: {
-          OPT_VAR: (value: number | undefined): BigInt | undefined =>
+          OPT_VAR: (value: number | undefined): bigint | undefined =>
             value !== undefined ? BigInt(value * 1e6) : undefined,
         },
         parse: {
@@ -112,7 +113,7 @@ describe('validateEnvSchema', (): void => {
       } as const);
       type ValueType = typeof values;
       type ExpectedType = {
-        OPT_VAR: BigInt | undefined;
+        OPT_VAR: bigint | undefined;
         REQ_VAR: {
           a?: number[];
           s: string;
@@ -171,6 +172,7 @@ New Value.....: 1000000000
       };
       const consoleSpy = getConsoleMock();
       const error = new Error('forced error');
+      expect.hasAssertions();
       try {
         validateEnvSchema(schema, container, {
           parse: {
@@ -179,16 +181,16 @@ New Value.....: 1000000000
             },
           },
         } as const);
-        expect(true).toBe(false);
       } catch (e) {
         expect(e).toBeInstanceOf(EnvSchemaValidationError);
-        expect(e.schema).toBe(schema);
-        expect(e.container).toBe(container);
-        expect(e.values).toEqual({
+        const err = e as EnvSchemaValidationError<typeof schema, undefined>;
+        expect(err.schema).toBe(schema);
+        expect(err.container).toBe(container);
+        expect(err.values).toEqual({
           OPT_VAR: 42, // goes to default value
           REQ_VAR: { a: [2, 3], s: 'hello' },
         });
-        expect(e.errors).toEqual({ OPT_VAR: [error] });
+        expect(err.errors).toEqual({ OPT_VAR: [error] });
         expect(container).toEqual({
           OPT_VAR: '42',
           REQ_VAR: '{"a":[2,3],"s":"hello"}',
@@ -207,6 +209,7 @@ New Value.....: 1000000000
       };
       const consoleSpy = getConsoleMock();
       const error = new Error('forced error');
+      expect.hasAssertions();
       try {
         validateEnvSchema(schema, container, {
           serialize: {
@@ -215,16 +218,16 @@ New Value.....: 1000000000
             },
           },
         } as const);
-        expect(true).toBe(false);
       } catch (e) {
         expect(e).toBeInstanceOf(EnvSchemaValidationError);
-        expect(e.schema).toBe(schema);
-        expect(e.container).toBe(container);
-        expect(e.values).toEqual({
+        const err = e as EnvSchemaValidationError<typeof schema, undefined>;
+        expect(err.schema).toBe(schema);
+        expect(err.container).toBe(container);
+        expect(err.values).toEqual({
           OPT_VAR: 1.23, // not deleted if fails to serialize
           REQ_VAR: { a: [2, 3], s: 'hello' },
         });
-        expect(e.errors).toEqual({ OPT_VAR: [error] });
+        expect(err.errors).toEqual({ OPT_VAR: [error] });
         expect(container).toEqual({
           REQ_VAR: '{"a":[2,3],"s":"hello"}',
         });
@@ -242,6 +245,7 @@ New Value.....: 1000000000
       };
       const consoleSpy = getConsoleMock();
       const error = new Error('forced error');
+      expect.hasAssertions();
       try {
         validateEnvSchema(schema, container, {
           postValidate: {
@@ -250,15 +254,15 @@ New Value.....: 1000000000
             },
           },
         } as const);
-        expect(true).toBe(false);
       } catch (e) {
         expect(e).toBeInstanceOf(EnvSchemaValidationError);
-        expect(e.schema).toBe(schema);
-        expect(e.container).toBe(container);
-        expect(e.values).toEqual({
+        const err = e as EnvSchemaValidationError<typeof schema, undefined>;
+        expect(err.schema).toBe(schema);
+        expect(err.container).toBe(container);
+        expect(err.values).toEqual({
           REQ_VAR: { a: [2, 3], s: 'hello' },
         });
-        expect(e.errors).toEqual({ OPT_VAR: [error] });
+        expect(err.errors).toEqual({ OPT_VAR: [error] });
         expect(container).toEqual({
           REQ_VAR: '{"a":[2,3],"s":"hello"}',
         });
@@ -278,6 +282,7 @@ New Value.....: 1000000000
       };
       const consoleSpy = getConsoleMock();
       const error = new Error('forced error');
+      expect.hasAssertions();
       try {
         validateEnvSchema(schema, container, {
           convert: {
@@ -286,15 +291,15 @@ New Value.....: 1000000000
             },
           },
         } as const);
-        expect(true).toBe(false);
       } catch (e) {
         expect(e).toBeInstanceOf(EnvSchemaValidationError);
-        expect(e.schema).toBe(schema);
-        expect(e.container).toBe(container);
-        expect(e.values).toEqual({
+        const err = e as EnvSchemaValidationError<typeof schema, undefined>;
+        expect(err.schema).toBe(schema);
+        expect(err.container).toBe(container);
+        expect(err.values).toEqual({
           REQ_VAR: { a: [2, 3], s: 'hello' },
         });
-        expect(e.errors).toEqual({ OPT_VAR: [error] });
+        expect(err.errors).toEqual({ OPT_VAR: [error] });
         expect(container).toEqual({
           REQ_VAR: '{"a":[2,3],"s":"hello"}',
         });
