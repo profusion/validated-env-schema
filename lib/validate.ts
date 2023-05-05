@@ -21,6 +21,17 @@ export const ajv = new Ajv({
   verbose: isDebugEnabled,
 });
 
+type ErrorIsModuleNotFoundException = (
+  error: unknown,
+) => asserts error is NodeJS.ErrnoException;
+
+/* istanbul ignore next */
+const assertErrorIsModuleNotFoundException: ErrorIsModuleNotFoundException =
+  error => {
+    if (!error || typeof error !== 'object' || !('code' in error)) throw error;
+    if (error.code !== 'MODULE_NOT_FOUND') throw error;
+  };
+
 /* istanbul ignore next */
 const assertErrorIsModuleNotFoundException: (
   error: unknown,
