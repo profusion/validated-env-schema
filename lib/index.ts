@@ -28,7 +28,7 @@ export const commonConvert = providedConverters;
 
 type ValidateEnvSchema<
   S extends BaseEnvSchema,
-  Customizations extends EnvSchemaCustomizations<S>
+  Customizations extends EnvSchemaCustomizations<S>,
 > = (
   container: Record<string, string | undefined>,
 ) => EnvSchemaConvertedValues<S, Customizations>;
@@ -53,7 +53,7 @@ type ValidateEnvSchema<
  */
 export const createValidateEnvSchema = <
   S extends BaseEnvSchema,
-  Customizations extends EnvSchemaCustomizations<S>
+  Customizations extends EnvSchemaCustomizations<S>,
 >(
   schema: S,
   customize?: Customizations,
@@ -135,7 +135,7 @@ export const createValidateEnvSchema = <
  */
 export const validateEnvSchema = <
   S extends BaseEnvSchema,
-  Customizations extends EnvSchemaCustomizations<S>
+  Customizations extends EnvSchemaCustomizations<S>,
 >(
   schema: S,
   container: Record<string, string | undefined> = process.env,

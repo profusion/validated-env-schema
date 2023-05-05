@@ -99,7 +99,7 @@ describe('createSerialize', (): void => {
     const container: Record<string, string | undefined> = {};
     expect(
       createSerialize(schema, schemaProperties(schema), undefined)(
-        (values as unknown) as TypeFromJSONSchema<S>,
+        values as unknown as TypeFromJSONSchema<S>,
         container,
         undefined,
       ),

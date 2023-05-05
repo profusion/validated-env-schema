@@ -6,6 +6,11 @@ import type {
   EnvSchemaErrors,
 } from './types';
 
+/* istanbul ignore next */
+export const assertIsError: (e: unknown) => asserts e is Error = e => {
+  if (!(e instanceof Error)) throw e;
+};
+
 export const addErrors = <S extends BaseEnvSchema>(
   initialErrors: EnvSchemaMaybeErrors<S>,
   key: Extract<keyof S['properties'], string> | '$other',
@@ -35,7 +40,7 @@ export const addErrors = <S extends BaseEnvSchema>(
  */
 export class EnvSchemaValidationError<
   S extends BaseEnvSchema,
-  Customizations extends EnvSchemaCustomizations<S>
+  Customizations extends EnvSchemaCustomizations<S>,
 > extends Error {
   readonly schema: S;
 
