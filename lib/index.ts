@@ -139,7 +139,7 @@ export const validateEnvSchema = <
 >(
   schema: S,
   container: Record<string, string | undefined> = process.env,
-  customize?: Customizations,
+  customize: Customizations | undefined = undefined,
 ): EnvSchemaConvertedValues<S, Customizations> =>
   createValidateEnvSchema(schema, customize)(container);
 

@@ -34,7 +34,8 @@ export type EnvSchemaPartialValues<S extends BaseEnvSchema> = Partial<
 export type EnvSchemaPropertyValue<
   S extends BaseEnvSchema,
   K extends keyof S['properties'],
-> = K extends keyof TypeFromJSONSchema<S> ? TypeFromJSONSchema<S>[K] : never;
+  V = TypeFromJSONSchema<S>,
+> = K extends keyof V ? V[K] : never;
 
 /**
  * Errors are stored per-property/variable, if something
@@ -119,14 +120,15 @@ export type EnvSchemaCustomSerializers<S extends BaseEnvSchema> = Readonly<
 export type EnvSchemaPostValidateFn<
   S extends BaseEnvSchema,
   K extends keyof S['properties'],
+  V = EnvSchemaPropertyValue<S, K>,
 > = (
-  value: EnvSchemaPropertyValue<S, K> | undefined,
+  value: V | undefined,
   propertySchema: S['properties'][K],
   key: K,
   schema: Readonly<S>,
   allValues: EnvSchemaPartialValues<S>,
   errors: Readonly<EnvSchemaMaybeErrors<S>>,
-) => EnvSchemaPropertyValue<S, K> | undefined;
+) => V | undefined;
 
 /**
  * Customize the validator to be executed for each property,
@@ -149,8 +151,9 @@ export type EnvSchemaConvertFn<
   S extends BaseEnvSchema,
   K extends keyof S['properties'],
   R,
+  V = EnvSchemaPropertyValue<S, K>,
 > = (
-  value: EnvSchemaPropertyValue<S, K> | undefined,
+  value: V | undefined,
   propertySchema: S['properties'][K],
   key: K,
   schema: Readonly<S>,
@@ -193,10 +196,11 @@ type EnvSchemaConvertedValue<
   S extends BaseEnvSchema,
   K extends keyof S['properties'],
   Convert,
+  V = TypeFromJSONSchema<S>,
 > = Convert extends EnvSchemaConvertFn<S, K, infer N>
   ? N
-  : K extends keyof TypeFromJSONSchema<S>
-  ? TypeFromJSONSchema<S>[K]
+  : K extends keyof V
+  ? V[K]
   : never;
 
 type EnvSchemaConvertedValuesWithConvertInternal<
@@ -219,7 +223,7 @@ export type EnvSchemaConverters<
 
 export type EnvSchemaConvertedPartialValuesWithConvert<
   S extends BaseEnvSchema,
-  Converters extends EnvSchemaCustomConverters<S> | undefined,
+  Converters,
 > = Converters extends EnvSchemaCustomConverters<S>
   ? Partial<EnvSchemaConvertedValuesWithConvertInternal<S, Converters>>
   : EnvSchemaPartialValues<S>;
@@ -236,9 +240,9 @@ export type EnvSchemaConvertedPartialValues<
   EnvSchemaConverters<S, Customizations>
 >;
 
-export type EnvSchemaConvertedValuesWithConvert<
+type EnvSchemaConvertedValuesWithConvert<
   S extends BaseEnvSchema,
-  Converters extends EnvSchemaCustomConverters<S> | undefined,
+  Converters,
 > = Converters extends EnvSchemaCustomConverters<S>
   ? EnvSchemaConvertedValuesWithConvertInternal<S, Converters>
   : TypeFromJSONSchema<S>;
