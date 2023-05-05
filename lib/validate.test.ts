@@ -3,11 +3,9 @@ process.env.VALIDATED_ENV_SCHEMA_DEBUG = 'true';
 
 import Ajv from 'ajv';
 
-import {
-  EnvSchemaMaybeErrors,
-  EnvSchemaPartialValues,
-  schemaProperties,
-} from './types';
+import type { TypeFromJSONSchema } from '@profusion/json-schema-to-typescript-definitions';
+
+import { schemaProperties } from './types';
 import createValidate from './validate';
 
 const getConsoleMock = (): jest.SpyInstance<void, unknown[]> =>
@@ -37,7 +35,7 @@ describe('createValidate', (): void => {
     required: ['REQ_VAR'],
     type: 'object',
   } as const;
-  type S = typeof schema;
+  type V = TypeFromJSONSchema<typeof schema>;
 
   it('works with valid data', (): void => {
     expect(
@@ -107,8 +105,7 @@ describe('createValidate', (): void => {
             a: ['2', '3'],
             s: true,
           },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any,
+        },
         undefined,
       ),
     ).toEqual([
@@ -138,8 +135,7 @@ describe('createValidate', (): void => {
               a: [2, 3],
               s: 'hello',
             },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any,
+          },
           undefined,
         ),
       ).toEqual([
@@ -171,8 +167,7 @@ describe('createValidate', (): void => {
         )(
           {
             OPT_VAR: 1,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any,
+          },
           undefined,
         ),
       ).toEqual([
@@ -201,8 +196,7 @@ describe('createValidate', (): void => {
           {
             OPT_VAR: 1,
             REQ_VAR: '{"bug":"not-an-object"}',
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any,
+          },
           undefined,
         ),
       ).toEqual([
@@ -233,8 +227,7 @@ describe('createValidate', (): void => {
               a: [2, 'bug'],
               s: 'hello',
             },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any,
+          },
           undefined,
         ),
       ).toEqual([
@@ -264,8 +257,7 @@ describe('createValidate', (): void => {
             REQ_VAR: {
               a: [1, 2],
             },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any,
+          },
           undefined,
         ),
       ).toEqual([
@@ -292,18 +284,17 @@ describe('createValidate', (): void => {
           a: ['2', '3'],
           s: true,
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any;
+      };
       expect(
         createValidate(schema, schemaProperties(schema), {
           OPT_VAR: (
             value: number | undefined,
-            propertySchema: S['properties']['OPT_VAR'],
-            key: string,
-            allSchema: S,
-            allValues: EnvSchemaPartialValues<S>,
-            errors: Readonly<EnvSchemaMaybeErrors<S>>,
-          ): number | undefined =>
+            propertySchema,
+            key,
+            allSchema,
+            allValues,
+            errors,
+          ) =>
             value === 1 &&
             propertySchema === schema.properties.OPT_VAR &&
             key === 'OPT_VAR' &&
@@ -332,19 +323,18 @@ describe('createValidate', (): void => {
           a: ['2', '3'],
           s: true,
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any;
+      };
       const consoleSpy = getConsoleMock();
       expect(
         createValidate(schema, schemaProperties(schema), {
           OPT_VAR: (
             value: number | undefined,
-            propertySchema: S['properties']['OPT_VAR'],
-            key: string,
-            allSchema: S,
-            allValues: EnvSchemaPartialValues<S>,
-            errors: Readonly<EnvSchemaMaybeErrors<S>>,
-          ): number | undefined =>
+            propertySchema,
+            key,
+            allSchema,
+            allValues,
+            errors,
+          ) =>
             value === 1 &&
             propertySchema === schema.properties.OPT_VAR &&
             key === 'OPT_VAR' &&
@@ -382,19 +372,18 @@ New Value.....: 1234
           a: ['2', '3'],
           s: true,
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any;
+      };
       const consoleSpy = getConsoleMock();
       expect(
         createValidate(schema, schemaProperties(schema), {
           OPT_VAR: (
             value: number | undefined,
-            propertySchema: S['properties']['OPT_VAR'],
-            key: string,
-            allSchema: S,
-            allValues: EnvSchemaPartialValues<S>,
-            errors: Readonly<EnvSchemaMaybeErrors<S>>,
-          ): number | undefined =>
+            propertySchema,
+            key,
+            allSchema,
+            allValues,
+            errors,
+          ) =>
             value === 1 &&
             propertySchema === schema.properties.OPT_VAR &&
             key === 'OPT_VAR' &&
@@ -425,8 +414,7 @@ New Value.....: 1234
           a: ['2', '3'],
           s: true,
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any;
+      };
       const error = new Error('forced error');
       const consoleSpy = getConsoleMock();
       expect(
@@ -457,13 +445,12 @@ New Value.....: 1234
       const values = {
         OPT_VAR: '1',
         REQ_VAR: '{"bug":"not-an-object"}',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any;
+      };
       const error = new Error('forced error');
       const consoleSpy = getConsoleMock();
       expect(
         createValidate(schema, schemaProperties(schema), {
-          REQ_VAR: (): EnvSchemaPartialValues<S>['REQ_VAR'] => {
+          REQ_VAR: (): V['REQ_VAR'] => {
             throw error;
           },
         })(values, undefined),

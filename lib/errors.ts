@@ -1,9 +1,13 @@
+import type { TypeFromJSONSchema } from '@profusion/json-schema-to-typescript-definitions';
+
 import type {
   BaseEnvSchema,
   EnvSchemaConvertedPartialValues,
   EnvSchemaCustomizations,
   EnvSchemaMaybeErrors,
   EnvSchemaErrors,
+  BaseEnvParsed,
+  KeyOf,
 } from './types';
 
 /* istanbul ignore next */
@@ -13,14 +17,12 @@ export const assertIsError: (e: unknown) => asserts e is Error = e => {
 
 export const addErrors = <S extends BaseEnvSchema>(
   initialErrors: EnvSchemaMaybeErrors<S>,
-  key: Extract<keyof S['properties'], string> | '$other',
+  key: KeyOf<S['properties']> | '$other',
   exception: Error,
 ): EnvSchemaErrors<S> => {
-  let errors = initialErrors;
-  if (errors === undefined) errors = {};
-  let keyErrors = errors[key];
-  if (keyErrors === undefined) {
-    keyErrors = [];
+  const errors: EnvSchemaErrors<S> = initialErrors ?? {};
+  const keyErrors = errors[key] ?? [];
+  if (!keyErrors.length) {
     errors[key] = keyErrors;
   }
   keyErrors.push(exception);
@@ -40,11 +42,15 @@ export const addErrors = <S extends BaseEnvSchema>(
  */
 export class EnvSchemaValidationError<
   S extends BaseEnvSchema,
-  Customizations extends EnvSchemaCustomizations<S>,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+  Customizations extends EnvSchemaCustomizations<
+    S,
+    V
+  > = EnvSchemaCustomizations<S, V>,
 > extends Error {
   readonly schema: S;
 
-  values: EnvSchemaConvertedPartialValues<S, Customizations>;
+  values: EnvSchemaConvertedPartialValues<S, V, Customizations>;
 
   errors: EnvSchemaErrors<S>;
 
@@ -57,7 +63,7 @@ export class EnvSchemaValidationError<
     customize: Customizations,
     errors: EnvSchemaErrors<S>,
     container: Record<string, string | undefined>,
-    values: EnvSchemaConvertedPartialValues<S, Customizations>,
+    values: EnvSchemaConvertedPartialValues<S, V, Customizations>,
   ) {
     const names = Object.keys(errors).join(', ');
     super(`Failed to validate environment variables against schema: ${names}`);
