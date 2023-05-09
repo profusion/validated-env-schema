@@ -28,10 +28,10 @@ describe('createSerialize', (): void => {
       },
       type: 'object',
     } as const;
-    type S = typeof schema;
-    const values: TypeFromJSONSchema<S> = {
+    type V = TypeFromJSONSchema<typeof schema>;
+    const values = {
       MY_VAR: true,
-    } as const;
+    } as const satisfies V;
     const container: Record<string, string | undefined> = {};
     expect(
       createSerialize(schema, schemaProperties(schema), undefined)(
@@ -50,10 +50,10 @@ describe('createSerialize', (): void => {
       },
       type: 'object',
     } as const;
-    type S = typeof schema;
-    const values: TypeFromJSONSchema<S> = {
+    type V = TypeFromJSONSchema<typeof schema>;
+    const values = {
       MY_VAR: 123,
-    } as const;
+    } as const satisfies V;
     const container: Record<string, string | undefined> = {};
     expect(
       createSerialize(schema, schemaProperties(schema), undefined)(
@@ -72,10 +72,10 @@ describe('createSerialize', (): void => {
       },
       type: 'object',
     } as const;
-    type S = typeof schema;
-    const values: TypeFromJSONSchema<S> = {
+    type V = TypeFromJSONSchema<typeof schema>;
+    const values = {
       MY_VAR: 'hello',
-    } as const;
+    } as const satisfies V;
     const container: Record<string, string | undefined> = {};
     expect(
       createSerialize(schema, schemaProperties(schema), undefined)(
@@ -94,12 +94,12 @@ describe('createSerialize', (): void => {
       },
       type: 'object',
     } as const;
-    type S = typeof schema;
-    const values = { MY_VAR: 123 };
+    type V = TypeFromJSONSchema<typeof schema>;
+    const values = { MY_VAR: 123 } as const;
     const container: Record<string, string | undefined> = {};
     expect(
       createSerialize(schema, schemaProperties(schema), undefined)(
-        values as unknown as TypeFromJSONSchema<S>,
+        values as unknown as V,
         container,
         undefined,
       ),
@@ -114,10 +114,10 @@ describe('createSerialize', (): void => {
       },
       type: 'object',
     } as const;
-    type S = typeof schema;
-    const values: TypeFromJSONSchema<S> = {
+    type V = TypeFromJSONSchema<typeof schema>;
+    const values = {
       MY_VAR: null,
-    } as const;
+    } as const satisfies V;
     const container: Record<string, string | undefined> = {};
     expect(
       createSerialize(schema, schemaProperties(schema), undefined)(
@@ -136,10 +136,10 @@ describe('createSerialize', (): void => {
       },
       type: 'object',
     } as const;
-    type S = typeof schema;
-    const values: TypeFromJSONSchema<S> = {
+    type V = TypeFromJSONSchema<typeof schema>;
+    const values = {
       MY_VAR: ['abc', 'def'] as string[],
-    } as const;
+    } as const satisfies V;
     const container: Record<string, string | undefined> = {};
     expect(
       createSerialize(schema, schemaProperties(schema), undefined)(
@@ -164,13 +164,13 @@ describe('createSerialize', (): void => {
       },
       type: 'object',
     } as const;
-    type S = typeof schema;
-    const values: TypeFromJSONSchema<S> = {
+    type V = TypeFromJSONSchema<typeof schema>;
+    const values = {
       MY_VAR: {
         b: true,
         s: 'hello',
       },
-    } as const;
+    } as const satisfies V;
     const container: Record<string, string | undefined> = {};
     expect(
       createSerialize(schema, schemaProperties(schema), undefined)(
@@ -189,8 +189,8 @@ describe('createSerialize', (): void => {
       },
       type: 'object',
     } as const;
-    type S = typeof schema;
-    const values: Partial<TypeFromJSONSchema<S>> = {} as const;
+    type V = TypeFromJSONSchema<typeof schema>;
+    const values = {} as const satisfies V;
     const container: Record<string, string | undefined> = {
       MY_VAR: 'will be removed',
     };
@@ -211,10 +211,10 @@ describe('createSerialize', (): void => {
       },
       type: 'object',
     } as const;
-    type S = typeof schema;
-    const values: Partial<TypeFromJSONSchema<S>> = {
+    type V = TypeFromJSONSchema<typeof schema>;
+    const values = {
       MY_VAR: true,
-    } as const;
+    } as const satisfies V;
     const container: Record<string, string | undefined> = {};
     expect(
       createSerialize(schema, schemaProperties(schema), {
@@ -243,10 +243,10 @@ describe('createSerialize', (): void => {
       },
       type: 'object',
     } as const;
-    type S = typeof schema;
-    const values: Partial<TypeFromJSONSchema<S>> = {
+    type V = TypeFromJSONSchema<typeof schema>;
+    const values = {
       MY_VAR: true,
-    } as const;
+    } as const satisfies V;
     const container: Record<string, string | undefined> = {};
     const consoleSpy = getConsoleMock();
     const error = new Error('forced error');

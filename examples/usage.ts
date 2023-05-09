@@ -97,7 +97,7 @@ try {
   console.error('Failed to validate process.env variables:', error);
 
   if (error instanceof EnvSchemaValidationError) {
-    const e: EnvSchemaValidationError<typeof appVars, typeof customize> = error;
+    const e: EnvSchemaValidationError<typeof appVars> = error;
     // if you want to proceed anyway, the partial result is stored at:
     console.log('partial result:', e.values);
     console.log('errors:', JSON.stringify(e.errors, undefined, 2));

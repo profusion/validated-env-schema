@@ -1,15 +1,15 @@
 import type {
   JSONSchema7Definition,
   JSONSchema7Type,
+  TypeFromJSONSchema,
 } from '@profusion/json-schema-to-typescript-definitions';
 
-import { EnvSchemaProperties } from './types';
+import { BaseEnvParsed, EnvSchemaProperties } from './types';
 import type {
   BaseEnvSchema,
   EnvSchemaCustomSerializers,
   EnvSchemaSerializeFn,
   EnvSchemaMaybeErrors,
-  EnvSchemaPartialValues,
 } from './types';
 import dbg from './dbg';
 import { addErrors, assertIsError } from './errors';
@@ -17,41 +17,43 @@ import { addErrors, assertIsError } from './errors';
 const defaultSerialize = (
   value: JSONSchema7Type,
   _propertySchema: JSONSchema7Definition,
-): string => {
-  if (typeof value === 'string') return value; // no double-quotes
-  return JSON.stringify(value);
-};
+): string => (typeof value === 'string' ? value : JSON.stringify(value)); // no double quotes
 
 // Serialize the parsed and validated values back to container.
 // DO NOT THROW HERE!
-type EnvSchemaSerialize<S extends BaseEnvSchema> = (
-  values: Readonly<EnvSchemaPartialValues<S>>,
+type EnvSchemaSerialize<
+  S extends BaseEnvSchema,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+> = (
+  values: Readonly<Partial<V>>,
   container: Record<string, string | undefined>,
   errors: EnvSchemaMaybeErrors<S>,
-) => [EnvSchemaPartialValues<S>, EnvSchemaMaybeErrors<S>];
+) => [Partial<V>, EnvSchemaMaybeErrors<S>];
 
-export default <S extends BaseEnvSchema>(
+export default <
+    S extends BaseEnvSchema,
+    V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+  >(
     schema: Readonly<S>,
-    properties: Readonly<EnvSchemaProperties<S>>,
-    customize: EnvSchemaCustomSerializers<S> | undefined,
-  ): EnvSchemaSerialize<S> =>
+    properties: Readonly<EnvSchemaProperties<S, V>>,
+    customize: EnvSchemaCustomSerializers<S, V> | undefined,
+  ): EnvSchemaSerialize<S, V> =>
   (
-    givenValues: Readonly<EnvSchemaPartialValues<S>>,
+    givenValues: Readonly<Partial<V>>,
     container: Record<string, string | undefined>,
     givenErrors: EnvSchemaMaybeErrors<S>,
-  ): [EnvSchemaPartialValues<S>, EnvSchemaMaybeErrors<S>] =>
+  ): [Partial<V>, EnvSchemaMaybeErrors<S>] =>
     properties.reduce(
       (
         [values, initialErrors],
         [key, propertySchema],
-      ): [EnvSchemaPartialValues<S>, EnvSchemaMaybeErrors<S>] => {
-        type K = typeof key;
+      ): [Partial<V>, EnvSchemaMaybeErrors<S>] => {
         const value = values[key];
         let errors = initialErrors;
         if (value !== undefined) {
           const serialize =
             // we already checked for not undefined, but TS doesn't get it :-(
-            ((customize && customize[key]) as EnvSchemaSerializeFn<S, K>) ||
+            ((customize && customize[key]) as EnvSchemaSerializeFn<S, V>) ||
             defaultSerialize;
 
           try {

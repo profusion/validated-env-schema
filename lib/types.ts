@@ -1,41 +1,48 @@
-import type {
-  TypeFromJSONSchema,
-  JSONSchema7,
-  JSONSchema7Definition,
-} from '@profusion/json-schema-to-typescript-definitions';
+import type { TypeFromJSONSchema } from '@profusion/json-schema-to-typescript-definitions';
+import type { JSONSchema7, JSONSchema7Definition } from 'json-schema';
+import type { DeepReadonly } from 'json-schema-to-ts/lib/types/type-utils/readonly';
+
+type ReadonlyJSONSchema = DeepReadonly<JSONSchema7>;
+type ReadonlyJSONSchemaDefinition = DeepReadonly<JSONSchema7Definition>;
+
+// string-only keys
+export type KeyOf<T extends object> = keyof T & string;
 
 export type BaseEnvSchema = {
   type: 'object';
-  properties: Readonly<{ [key: string]: JSONSchema7 }>;
+  properties: Readonly<{ [key: string]: ReadonlyJSONSchema }>;
   required?: readonly string[];
-  dependencies?: {
-    readonly [key: string]: JSONSchema7Definition | readonly string[];
-  };
+  dependencies?: Readonly<{
+    [key: string]: ReadonlyJSONSchemaDefinition | string[];
+  }>;
   additionalProperties?: true; // if provided, must be true, otherwise it may hurt process.env
 };
 
-export type EnvSchemaProperties<S extends BaseEnvSchema> = {
-  [K in Extract<keyof S['properties'], string>]: [K, S['properties'][K]];
-}[Extract<keyof S['properties'], string>][];
-
-export const schemaProperties = <S extends BaseEnvSchema>(
-  schema: S,
-): Readonly<EnvSchemaProperties<S>> =>
-  Object.entries(schema.properties) as EnvSchemaProperties<S>;
-
-/**
- * Subset of valid (post-validate) properties. If there are no
- * errors, then all required properties should be present.
- */
-export type EnvSchemaPartialValues<S extends BaseEnvSchema> = Partial<
-  TypeFromJSONSchema<S>
+export type BaseEnvParsed<S extends BaseEnvSchema> = Record<
+  KeyOf<S['properties']>,
+  unknown
 >;
+
+export type EnvSchemaProperties<
+  S extends BaseEnvSchema,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+  Keys extends KeyOf<S['properties'] & V> = KeyOf<S['properties'] & V>,
+> = {
+  [K in Keys]: [K, S['properties'][K]];
+}[Keys][];
+
+export const schemaProperties = <
+  S extends BaseEnvSchema,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+  Ret extends EnvSchemaProperties<S, V> = EnvSchemaProperties<S, V>,
+>({
+  properties,
+}: S): Readonly<Ret> => Object.entries(properties) as Ret;
 
 export type EnvSchemaPropertyValue<
   S extends BaseEnvSchema,
-  K extends keyof S['properties'],
-  V = TypeFromJSONSchema<S>,
-> = K extends keyof V ? V[K] : never;
+  V extends BaseEnvParsed<S>,
+> = V[KeyOf<V>];
 
 /**
  * Errors are stored per-property/variable, if something
@@ -44,27 +51,27 @@ export type EnvSchemaPropertyValue<
  * Multiple phases may produce errors, then it's stored as array.
  */
 export type EnvSchemaErrors<S extends BaseEnvSchema> = Partial<{
-  [K in keyof S['properties'] | '$other']: Error[];
+  [K in KeyOf<S['properties']> | '$other']: Error[];
 }>;
 export type EnvSchemaMaybeErrors<S extends BaseEnvSchema> =
   | EnvSchemaErrors<S>
   | undefined;
 
 /**
- * Parse one property from string to the best JSONSchema7Type.
+ * Parse one property from string to the best ReadonlyJSONSchema.
  *
  * There is no need to coerce types as Ajv.validate() will do that
  * for you.
  */
 export type EnvSchemaParserFn<
   S extends BaseEnvSchema,
-  K extends keyof S['properties'],
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
 > = (
   str: string,
-  propertySchema: Readonly<S['properties'][K]>,
-  key: K,
+  propertySchema: Readonly<S['properties'][KeyOf<S['properties']>]>,
+  key: KeyOf<S['properties']>,
   schema: Readonly<S>,
-) => EnvSchemaPropertyValue<S, K>;
+) => EnvSchemaPropertyValue<S, V>;
 
 /**
  * Customize the parser to be used for each property.
@@ -72,24 +79,27 @@ export type EnvSchemaParserFn<
  * If not provided, the default is to `JSON.parse()` and, if that fails,
  * keep the original value as a string.
  */
-export type EnvSchemaCustomParsers<S extends BaseEnvSchema> = Readonly<
+export type EnvSchemaCustomParsers<
+  S extends BaseEnvSchema,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+> = Readonly<
   Partial<{
-    [K in keyof S['properties']]: EnvSchemaParserFn<S, K>;
+    [K in KeyOf<S['properties']>]: EnvSchemaParserFn<S, V>;
   }>
 >;
 
 /**
- * Serialize one property from validated JSONSchema7Type to string.
+ * Serialize one property from validated ReadonlyJSONSchema to string.
  *
  * The types will be validated by Ajv.validate()
  */
 export type EnvSchemaSerializeFn<
   S extends BaseEnvSchema,
-  K extends keyof S['properties'],
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
 > = (
-  value: Exclude<EnvSchemaPropertyValue<S, K>, undefined>,
-  propertySchema: Readonly<S['properties'][K]>,
-  key: K,
+  value: Exclude<EnvSchemaPropertyValue<S, V>, undefined>,
+  propertySchema: Readonly<S['properties'][KeyOf<S['properties']>]>,
+  key: KeyOf<S['properties']>,
   schema: Readonly<S>,
 ) => string;
 
@@ -99,9 +109,12 @@ export type EnvSchemaSerializeFn<
  * If not provided, the default is to `JSON.stringify()`,
  * unless it's already a string.
  */
-export type EnvSchemaCustomSerializers<S extends BaseEnvSchema> = Readonly<
+export type EnvSchemaCustomSerializers<
+  S extends BaseEnvSchema,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+> = Readonly<
   Partial<{
-    [K in keyof S['properties']]: EnvSchemaSerializeFn<S, K>;
+    [K in KeyOf<S['properties']>]: EnvSchemaSerializeFn<S, V>;
   }>
 >;
 
@@ -119,16 +132,16 @@ export type EnvSchemaCustomSerializers<S extends BaseEnvSchema> = Readonly<
  */
 export type EnvSchemaPostValidateFn<
   S extends BaseEnvSchema,
-  K extends keyof S['properties'],
-  V = EnvSchemaPropertyValue<S, K>,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+  PV extends EnvSchemaPropertyValue<S, V> = EnvSchemaPropertyValue<S, V>,
 > = (
-  value: V | undefined,
-  propertySchema: S['properties'][K],
-  key: K,
+  value: PV | undefined,
+  propertySchema: S['properties'][KeyOf<S['properties']>],
+  key: KeyOf<S['properties']>,
   schema: Readonly<S>,
-  allValues: EnvSchemaPartialValues<S>,
+  allValues: Partial<V>,
   errors: Readonly<EnvSchemaMaybeErrors<S>>,
-) => V | undefined;
+) => PV | undefined;
 
 /**
  * Customize the validator to be executed for each property,
@@ -136,43 +149,48 @@ export type EnvSchemaPostValidateFn<
  *
  * Each validator will receive the other properties for convenience.
  */
-export type EnvSchemaCustomPostValidators<S extends BaseEnvSchema> = Readonly<
+export type EnvSchemaCustomPostValidators<
+  S extends BaseEnvSchema,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+> = Readonly<
   Partial<{
-    [K in keyof S['properties']]: EnvSchemaPostValidateFn<S, K>;
+    [K in KeyOf<S['properties']>]: EnvSchemaPostValidateFn<S, V>;
   }>
 >;
 
 /**
- * Convert JSONSchema7Type to high-level values, such as 'Date'.
+ * Convert ReadonlyJSONSchema to high-level values, such as 'Date'.
  *
  * This is executed with the post-Validated data.
  */
 export type EnvSchemaConvertFn<
   S extends BaseEnvSchema,
-  K extends keyof S['properties'],
-  R,
-  V = EnvSchemaPropertyValue<S, K>,
+  V extends BaseEnvParsed<S>,
+  // we must match any return type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Ret = any,
 > = (
-  value: V | undefined,
-  propertySchema: S['properties'][K],
-  key: K,
+  value: EnvSchemaPropertyValue<S, V> | undefined,
+  propertySchema: S['properties'][KeyOf<S['properties']>],
+  key: KeyOf<S['properties']>,
   schema: Readonly<S>,
-  allValues: EnvSchemaPartialValues<S>,
+  allValues: Partial<V>,
   errors: Readonly<EnvSchemaMaybeErrors<S>>,
-) => R;
+) => Ret;
 
 /**
  * Each converter will receive the other properties for convenience.
  *
  * If not provided, the value will be kept as the post-validated
- * JSONSchema7Type that matches the type (TypeFromJSONSchema),
+ * ReadonlyJSONSchema that matches the type (TypeFromJSONSchema),
  * otherwise it may be converted to high-level type, such as `Date`.
  */
-export type EnvSchemaCustomConverters<S extends BaseEnvSchema> = Readonly<
+export type EnvSchemaCustomConverters<
+  S extends BaseEnvSchema,
+  V extends BaseEnvParsed<S>,
+> = Readonly<
   Partial<{
-    // we must match any return type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    [K in keyof S['properties']]: EnvSchemaConvertFn<S, K, any>;
+    [K in KeyOf<S['properties'] & V>]: EnvSchemaConvertFn<S, V>;
   }>
 >;
 
@@ -183,50 +201,61 @@ export type EnvSchemaCustomConverters<S extends BaseEnvSchema> = Readonly<
  * - serialize the post-validated value back to string
  * - convert the JSON type to native type (ie: `Date`)
  */
-export type EnvSchemaCustomizations<S extends BaseEnvSchema> =
+export type EnvSchemaCustomizations<
+  S extends BaseEnvSchema,
+  V extends BaseEnvParsed<S>,
+> =
   | Readonly<{
-      convert?: EnvSchemaCustomConverters<S>;
-      parse?: EnvSchemaCustomParsers<S>;
-      postValidate?: EnvSchemaCustomPostValidators<S>;
-      serialize?: EnvSchemaCustomSerializers<S>;
+      convert?: EnvSchemaCustomConverters<S, V>;
+      parse?: EnvSchemaCustomParsers<S, V>;
+      postValidate?: EnvSchemaCustomPostValidators<S, V>;
+      serialize?: EnvSchemaCustomSerializers<S, V>;
     }>
   | undefined;
 
 type EnvSchemaConvertedValue<
   S extends BaseEnvSchema,
-  K extends keyof S['properties'],
+  K extends KeyOf<S['properties']>,
   Convert,
-  V = TypeFromJSONSchema<S>,
-> = Convert extends EnvSchemaConvertFn<S, K, infer N>
-  ? N
-  : K extends keyof V
-  ? V[K]
-  : never;
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+> = Convert extends EnvSchemaConvertFn<S, V, infer N> ? N : V[K];
 
 type EnvSchemaConvertedValuesWithConvertInternal<
   S extends BaseEnvSchema,
-  Converters extends EnvSchemaCustomConverters<S>,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+  Converters extends EnvSchemaCustomConverters<
+    S,
+    V
+  > = EnvSchemaCustomConverters<S, V>,
 > = {
-  -readonly [K in keyof S['properties']]: EnvSchemaConvertedValue<
+  -readonly [K in KeyOf<S['properties']>]: EnvSchemaConvertedValue<
     S,
     K,
-    Converters[K]
+    Converters[K],
+    V
   >;
 };
 
 export type EnvSchemaConverters<
   S extends BaseEnvSchema,
-  Customizations extends EnvSchemaCustomizations<S>,
-> = Customizations extends { readonly convert: EnvSchemaCustomConverters<S> }
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+  Customizations extends EnvSchemaCustomizations<
+    S,
+    V
+  > = EnvSchemaCustomizations<S, V>,
+> = Customizations extends { readonly convert: EnvSchemaCustomConverters<S, V> }
   ? Customizations['convert']
   : undefined;
 
 export type EnvSchemaConvertedPartialValuesWithConvert<
   S extends BaseEnvSchema,
   Converters,
-> = Converters extends EnvSchemaCustomConverters<S>
-  ? Partial<EnvSchemaConvertedValuesWithConvertInternal<S, Converters>>
-  : EnvSchemaPartialValues<S>;
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+> = Partial<
+  Converters extends EnvSchemaCustomConverters<S, V>
+    ? EnvSchemaConvertedValuesWithConvertInternal<S, V, Converters>
+    : V
+>;
 
 /**
  * Subset of converted properties. If there are no
@@ -234,18 +263,24 @@ export type EnvSchemaConvertedPartialValuesWithConvert<
  */
 export type EnvSchemaConvertedPartialValues<
   S extends BaseEnvSchema,
-  Customizations extends EnvSchemaCustomizations<S>,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+  Customizations extends EnvSchemaCustomizations<
+    S,
+    V
+  > = EnvSchemaCustomizations<S, V>,
 > = EnvSchemaConvertedPartialValuesWithConvert<
   S,
-  EnvSchemaConverters<S, Customizations>
+  EnvSchemaConverters<S, V, Customizations>,
+  V
 >;
 
 type EnvSchemaConvertedValuesWithConvert<
   S extends BaseEnvSchema,
   Converters,
-> = Converters extends EnvSchemaCustomConverters<S>
-  ? EnvSchemaConvertedValuesWithConvertInternal<S, Converters>
-  : TypeFromJSONSchema<S>;
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+> = Converters extends EnvSchemaCustomConverters<S, V>
+  ? EnvSchemaConvertedValuesWithConvertInternal<S, V, Converters>
+  : V;
 
 /**
  * All converted properties. It assumes there
@@ -254,8 +289,13 @@ type EnvSchemaConvertedValuesWithConvert<
  */
 export type EnvSchemaConvertedValues<
   S extends BaseEnvSchema,
-  Customizations extends EnvSchemaCustomizations<S>,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+  Customizations extends EnvSchemaCustomizations<
+    S,
+    V
+  > = EnvSchemaCustomizations<S, V>,
 > = EnvSchemaConvertedValuesWithConvert<
   S,
-  EnvSchemaConverters<S, Customizations>
+  EnvSchemaConverters<S, V, Customizations>,
+  V
 >;

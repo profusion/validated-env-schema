@@ -1,12 +1,14 @@
+import type { TypeFromJSONSchema } from '@profusion/json-schema-to-typescript-definitions';
+
 import type {
+  BaseEnvParsed,
   BaseEnvSchema,
   EnvSchemaConvertedPartialValues,
   EnvSchemaConvertedPartialValuesWithConvert,
   EnvSchemaCustomConverters,
   EnvSchemaMaybeErrors,
   EnvSchemaProperties,
-  EnvSchemaPropertyValue,
-  EnvSchemaPartialValues,
+  KeyOf,
 } from './types';
 
 import { addErrors } from './errors';
@@ -15,13 +17,14 @@ import dbg from './dbg';
 // DO NOT THROW HERE!
 type EnvSchemaConvert<
   S extends BaseEnvSchema,
-  Converters extends EnvSchemaCustomConverters<S> | undefined,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+  Converters extends EnvSchemaCustomConverters<S, V> | undefined = undefined,
 > = (
-  value: EnvSchemaPartialValues<S>,
+  value: Partial<V>,
   errors: EnvSchemaMaybeErrors<S>,
   container: Record<string, string | undefined>,
 ) => [
-  EnvSchemaConvertedPartialValuesWithConvert<S, Converters>,
+  EnvSchemaConvertedPartialValuesWithConvert<S, Converters, V>,
   EnvSchemaMaybeErrors<S>,
 ];
 
@@ -29,36 +32,35 @@ const noRequiredProperties: string[] = [];
 
 const createConvert = <
   S extends BaseEnvSchema,
-  Converters extends EnvSchemaCustomConverters<S>,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+  Converters extends EnvSchemaCustomConverters<
+    S,
+    V
+  > = EnvSchemaCustomConverters<S, V>,
 >(
   schema: S,
-  properties: Readonly<EnvSchemaProperties<S>>,
+  properties: Readonly<EnvSchemaProperties<S, V>>,
   customize: Converters,
-): EnvSchemaConvert<S, Converters> => {
+): EnvSchemaConvert<S, V, Converters> => {
   const convertedProperties = properties.filter(
     ([key]) => customize[key] !== undefined,
   );
 
-  type ConverterKey = Extract<keyof Converters, string>;
-  const requiredProperties: readonly ConverterKey[] = schema.required
-    ? (schema.required.filter(
-        key => customize[key] !== undefined,
-      ) as ConverterKey[])
-    : (noRequiredProperties as ConverterKey[]);
+  type ConverterKey = KeyOf<Converters & V>;
+  const requiredProperties = schema.required
+    ? schema.required.filter(key => customize[key] !== undefined)
+    : noRequiredProperties;
 
   return (
-    initialValues: EnvSchemaPartialValues<S>,
+    initialValues: Partial<V>,
     initialErrors: EnvSchemaMaybeErrors<S>,
     container: Record<string, string | undefined>,
   ): [
-    EnvSchemaConvertedPartialValuesWithConvert<S, Converters>,
+    EnvSchemaConvertedPartialValuesWithConvert<S, Converters, V>,
     EnvSchemaMaybeErrors<S>,
   ] => {
     // alias the same object with a different type, save on casts
-    const values = initialValues as EnvSchemaConvertedPartialValuesWithConvert<
-      S,
-      Converters
-    >;
+    const values = initialValues;
     let errors = initialErrors;
 
     const removeValue = (key: ConverterKey): void => {
@@ -68,13 +70,14 @@ const createConvert = <
     };
 
     convertedProperties.forEach(([key, propertySchema]) => {
-      type K = typeof key;
       // it was filtered before
-      const convert = customize[key] as Exclude<Converters[K], undefined>;
+      const convert = customize[key] as NonNullable<
+        (typeof customize)[typeof key]
+      >;
       const oldValue = values[key];
       try {
         const newValue = convert(
-          values[key] as EnvSchemaPropertyValue<S, K> | undefined,
+          values[key],
           propertySchema,
           key,
           schema,
@@ -118,36 +121,39 @@ New Value.....: ${newValue}
       if (values[key] === undefined) {
         errors = addErrors(
           errors,
-          key as Extract<keyof S['properties'], string>,
+          key,
           new Error(`required property "${key}" is undefined`),
         );
       }
     });
 
-    return [values, errors];
+    return [
+      values as EnvSchemaConvertedPartialValuesWithConvert<S, Converters, V>,
+      errors,
+    ];
   };
 };
 
-const noConversion = <S extends BaseEnvSchema>(
-  values: EnvSchemaPartialValues<S>,
+const noConversion = <
+  S extends BaseEnvSchema,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+>(
+  values: Partial<V>,
   errors: EnvSchemaMaybeErrors<S>,
-): [EnvSchemaConvertedPartialValues<S, undefined>, EnvSchemaMaybeErrors<S>] => [
-  values as EnvSchemaConvertedPartialValues<S, undefined>,
+): [EnvSchemaConvertedPartialValues<S, never, V>, EnvSchemaMaybeErrors<S>] => [
+  values as EnvSchemaConvertedPartialValues<S, never, V>,
   errors,
 ];
 
 export default <
   S extends BaseEnvSchema,
-  Converters extends EnvSchemaCustomConverters<S> | undefined,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+  Converters extends EnvSchemaCustomConverters<S, V> | undefined = undefined,
 >(
   schema: Readonly<S>,
-  properties: Readonly<EnvSchemaProperties<S>>,
+  properties: Readonly<EnvSchemaProperties<S, V>>,
   customize: Converters,
-): EnvSchemaConvert<S, Converters> =>
+): EnvSchemaConvert<S, V, Converters> =>
   customize === undefined
-    ? (noConversion as unknown as EnvSchemaConvert<S, Converters>)
-    : createConvert(
-        schema,
-        properties,
-        customize as Exclude<Converters, undefined>,
-      );
+    ? (noConversion as unknown as EnvSchemaConvert<S, V, Converters>)
+    : createConvert<S, V, typeof customize>(schema, properties, customize);

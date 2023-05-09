@@ -1,4 +1,7 @@
+import type { TypeFromJSONSchema } from '@profusion/json-schema-to-typescript-definitions';
+
 import type {
+  BaseEnvParsed,
   BaseEnvSchema,
   EnvSchemaConvertedValues,
   EnvSchemaConverters,
@@ -28,10 +31,14 @@ export const commonConvert = providedConverters;
 
 type ValidateEnvSchema<
   S extends BaseEnvSchema,
-  Customizations extends EnvSchemaCustomizations<S>,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+  Customizations extends EnvSchemaCustomizations<
+    S,
+    V
+  > = EnvSchemaCustomizations<S, V>,
 > = (
   container: Record<string, string | undefined>,
-) => EnvSchemaConvertedValues<S, Customizations>;
+) => EnvSchemaConvertedValues<S, V, Customizations>;
 
 /**
  * Creates the validator based on JSON Schema 7 and customizations.
@@ -53,23 +60,39 @@ type ValidateEnvSchema<
  */
 export const createValidateEnvSchema = <
   S extends BaseEnvSchema,
-  Customizations extends EnvSchemaCustomizations<S>,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+  Customizations extends EnvSchemaCustomizations<
+    S,
+    V
+  > = EnvSchemaCustomizations<S, V>,
 >(
   schema: S,
   customize?: Customizations,
-): ValidateEnvSchema<S, Customizations> => {
-  const properties = schemaProperties(schema);
-  const parse = createParse(schema, properties, customize?.parse);
-  const validate = createValidate(schema, properties, customize?.postValidate);
-  const serialize = createSerialize(schema, properties, customize?.serialize);
-  const convert = createConvert<S, EnvSchemaConverters<S, Customizations>>(
+): ValidateEnvSchema<S, V, Customizations> => {
+  const properties = schemaProperties<S, V>(schema);
+  const parse = createParse<S, V>(schema, properties, customize?.parse);
+  const validate = createValidate<S, V>(
     schema,
     properties,
-    customize?.convert as EnvSchemaConverters<S, Customizations>,
+    customize?.postValidate,
+  );
+  const serialize = createSerialize<S, V>(
+    schema,
+    properties,
+    customize?.serialize,
+  );
+  const convert = createConvert<
+    S,
+    V,
+    EnvSchemaConverters<S, V, Customizations>
+  >(
+    schema,
+    properties,
+    customize?.convert as EnvSchemaConverters<S, V, Customizations>,
   );
   return (
     container: Record<string, string | undefined>,
-  ): EnvSchemaConvertedValues<S, Customizations> => {
+  ): EnvSchemaConvertedValues<S, V, Customizations> => {
     const [parsedValues, parseErrors] = parse(container);
 
     const [validatedValues, validationErrors] = validate(
@@ -100,7 +123,7 @@ export const createValidateEnvSchema = <
     }
 
     // no errors means the partial object is actually complete
-    return values as EnvSchemaConvertedValues<S, Customizations>;
+    return values as EnvSchemaConvertedValues<S, V, Customizations>;
   };
 };
 
@@ -135,12 +158,13 @@ export const createValidateEnvSchema = <
  */
 export const validateEnvSchema = <
   S extends BaseEnvSchema,
-  Customizations extends EnvSchemaCustomizations<S>,
+  V extends TypeFromJSONSchema<S>,
+  Customizations extends EnvSchemaCustomizations<S, V>,
 >(
   schema: S,
   container: Record<string, string | undefined> = process.env,
   customize: Customizations | undefined = undefined,
-): EnvSchemaConvertedValues<S, Customizations> =>
-  createValidateEnvSchema(schema, customize)(container);
+): EnvSchemaConvertedValues<S, V, Customizations> =>
+  createValidateEnvSchema<S, V, Customizations>(schema, customize)(container);
 
 export default validateEnvSchema;

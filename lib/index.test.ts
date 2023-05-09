@@ -66,7 +66,7 @@ describe('validateEnvSchema', (): void => {
         validateEnvSchema(schema, container);
       } catch (e) {
         expect(e).toBeInstanceOf(EnvSchemaValidationError);
-        const err = e as EnvSchemaValidationError<typeof schema, undefined>;
+        const err = e as EnvSchemaValidationError<typeof schema>;
         expect(err.schema).toBe(schema);
         expect(err.container).toBe(container);
         expect(err.values).toEqual({
@@ -88,10 +88,10 @@ describe('validateEnvSchema', (): void => {
     });
 
     it('works with customizations', (): void => {
-      const container: Record<string, string | undefined> = {
+      const container = {
         OPT_VAR: '1.23',
         REQ_VAR: '{"a": [2, 3], "s": "hello"}',
-      };
+      } as const;
       const consoleSpy = getConsoleMock();
       const values = validateEnvSchema(schema, container, {
         convert: {
@@ -99,7 +99,7 @@ describe('validateEnvSchema', (): void => {
             value !== undefined ? BigInt(value * 1e6) : undefined,
         },
         parse: {
-          OPT_VAR: (str: string): number => Number(str) * 1000,
+          OPT_VAR: str => Number(str) * 1000,
         },
         postValidate: {
           OPT_VAR: (value: number | undefined): number | undefined =>
@@ -110,7 +110,8 @@ describe('validateEnvSchema', (): void => {
         serialize: {
           OPT_VAR: (value: number): string => String(value / 1000),
         },
-      } as const);
+        // TODO: try as const once type is fixed
+      });
       type ValueType = typeof values;
       type ExpectedType = {
         OPT_VAR: bigint | undefined;
@@ -183,7 +184,7 @@ New Value.....: 1000000000
         } as const);
       } catch (e) {
         expect(e).toBeInstanceOf(EnvSchemaValidationError);
-        const err = e as EnvSchemaValidationError<typeof schema, undefined>;
+        const err = e as EnvSchemaValidationError<typeof schema>;
         expect(err.schema).toBe(schema);
         expect(err.container).toBe(container);
         expect(err.values).toEqual({
@@ -220,7 +221,7 @@ New Value.....: 1000000000
         } as const);
       } catch (e) {
         expect(e).toBeInstanceOf(EnvSchemaValidationError);
-        const err = e as EnvSchemaValidationError<typeof schema, undefined>;
+        const err = e as EnvSchemaValidationError<typeof schema>;
         expect(err.schema).toBe(schema);
         expect(err.container).toBe(container);
         expect(err.values).toEqual({
@@ -256,7 +257,7 @@ New Value.....: 1000000000
         } as const);
       } catch (e) {
         expect(e).toBeInstanceOf(EnvSchemaValidationError);
-        const err = e as EnvSchemaValidationError<typeof schema, undefined>;
+        const err = e as EnvSchemaValidationError<typeof schema>;
         expect(err.schema).toBe(schema);
         expect(err.container).toBe(container);
         expect(err.values).toEqual({
@@ -293,7 +294,7 @@ New Value.....: 1000000000
         } as const);
       } catch (e) {
         expect(e).toBeInstanceOf(EnvSchemaValidationError);
-        const err = e as EnvSchemaValidationError<typeof schema, undefined>;
+        const err = e as EnvSchemaValidationError<typeof schema>;
         expect(err.schema).toBe(schema);
         expect(err.container).toBe(container);
         expect(err.values).toEqual({
