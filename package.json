@@ -9,7 +9,8 @@
   "repository": "https://github.com/profusion/validated-env-schema",
   "lint-staged": {
     "*.{ts, js}": [
-      "eslint",
+      "prettier --write",
+      "eslint --fix",
       "jest --bail --findRelatedTests"
     ]
   },
