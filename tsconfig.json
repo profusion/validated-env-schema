@@ -1,5 +1,4 @@
 {
-  "extends": "@tsconfig/node18/tsconfig.json",
   "compilerOptions": {
     "target": "ES2015",
     "moduleResolution": "node",
