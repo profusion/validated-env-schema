@@ -23,9 +23,11 @@ const expectConsoleMockAndRestore = (
 describe('validateEnvSchema', (): void => {
   describe('basic schema', (): void => {
     const schema = {
+      additionalProperties: false,
       properties: {
         OPT_VAR: { default: 42, minimum: 0, type: 'number' },
         REQ_VAR: {
+          additionalProperties: false,
           properties: {
             a: schemaHelpers.array({ items: commonSchemas.number }),
             s: commonSchemas.string,
@@ -87,6 +89,12 @@ describe('validateEnvSchema', (): void => {
       }
     });
 
+    type ExpandRecursively<T> = T extends object
+      ? T extends infer O
+        ? { [K in keyof O]: ExpandRecursively<O[K]> }
+        : never
+      : T;
+
     it('works with customizations', (): void => {
       const container = {
         OPT_VAR: '1.23',
@@ -95,8 +103,12 @@ describe('validateEnvSchema', (): void => {
       const consoleSpy = getConsoleMock();
       const values = validateEnvSchema(schema, container, {
         convert: {
-          OPT_VAR: (value: number | undefined): bigint | undefined =>
-            value !== undefined ? BigInt(value * 1e6) : undefined,
+          // FIXME: value is a union-type of OPT_VAR and REQ_VAR, shouldn't be just OPT_VAR?
+          // XXX: if additionalProperties is not false we get a union of all possible values
+          OPT_VAR: (value): bigint | undefined => {
+            type Test = ExpandRecursively<typeof value>;
+            return value !== undefined ? BigInt(value * 1e6) : undefined;
+          },
         },
         parse: {
           OPT_VAR: str => Number(str) * 1000,

@@ -15,7 +15,7 @@ export type BaseEnvSchema = {
   dependencies?: Readonly<{
     [key: string]: ReadonlyJSONSchemaDefinition | string[];
   }>;
-  additionalProperties?: true; // if provided, must be true, otherwise it may hurt process.env
+  // additionalProperties?: true; // if provided, must be true, otherwise it may hurt process.env
 };
 
 export type BaseEnvParsed<S extends BaseEnvSchema> = Record<
