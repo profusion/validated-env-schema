@@ -4,13 +4,10 @@ process.env.VALIDATED_ENV_SCHEMA_DEBUG = 'true';
 import {
   commonSchemas,
   JSONSchema7,
+  TypeFromJSONSchema,
 } from '@profusion/json-schema-to-typescript-definitions';
 
-import {
-  EnvSchemaMaybeErrors,
-  EnvSchemaPartialValues,
-  schemaProperties,
-} from './types';
+import { EnvSchemaMaybeErrors, schemaProperties } from './types';
 import commonConvert from './common-convert';
 import createConvert from './convert';
 
@@ -34,17 +31,17 @@ describe('createConvert', (): void => {
     required: ['REQ_VAR'],
     type: 'object',
   } as const;
-  type S = typeof schema;
+  type V = TypeFromJSONSchema<typeof schema>;
 
   it('works without conversion', (): void => {
-    const values: EnvSchemaPartialValues<S> = {
+    const values = {
       OPT_VAR: '0x1fffffffffffff',
       REQ_VAR: '2021-01-02T12:34:56.000Z',
-    };
-    const container: Record<string, string | undefined> = {
+    } as const satisfies V;
+    const container = {
       OPT_VAR: '0x1fffffffffffff',
       REQ_VAR: '2021-01-02T12:34:56.000Z',
-    };
+    } as const satisfies V;
     const convert = createConvert(schema, schemaProperties(schema), undefined);
     const consoleSpy = getConsoleMock();
     const [convertedValue, conversionErrors] = convert(
@@ -66,22 +63,22 @@ describe('createConvert', (): void => {
   });
 
   it('works with valid schema', (): void => {
-    const values: EnvSchemaPartialValues<S> = {
+    const values = {
       OPT_VAR: '0x1fffffffffffff',
       REQ_VAR: '2021-01-02T12:34:56.000Z',
-    };
+    } as const satisfies V;
     const container = {
       OPT_VAR: '0x1fffffffffffff',
       REQ_VAR: '2021-01-02T12:34:56.000Z',
-    } as const;
+    } as const satisfies V;
     const convert = createConvert(schema, schemaProperties(schema), {
       OPT_VAR: (
         value: string | undefined,
         propertySchema: JSONSchema7,
         key: string,
         allSchema: JSONSchema7,
-        initialValues: EnvSchemaPartialValues<S>,
-        errors: EnvSchemaMaybeErrors<S>,
+        initialValues: Partial<V>,
+        errors: EnvSchemaMaybeErrors<typeof schema>,
       ): bigint | undefined =>
         typeof value === 'string' &&
         propertySchema === schema.properties.OPT_VAR &&
@@ -129,7 +126,7 @@ New Value.....: ${commonConvert.dateTime(container.REQ_VAR)}
   });
 
   it('works with missing values (keep undefined)', (): void => {
-    const values: EnvSchemaPartialValues<S> = {};
+    const values: Partial<V> = {};
     const container: Record<string, string | undefined> = {};
     const convert = createConvert(schema, schemaProperties(schema), {
       OPT_VAR: (
@@ -137,8 +134,8 @@ New Value.....: ${commonConvert.dateTime(container.REQ_VAR)}
         propertySchema: JSONSchema7,
         key: string,
         allSchema: JSONSchema7,
-        initialValues: EnvSchemaPartialValues<S>,
-        errors: EnvSchemaMaybeErrors<S>,
+        initialValues: Partial<V>,
+        errors: EnvSchemaMaybeErrors<typeof schema>,
       ): bigint | undefined =>
         typeof value === 'string' &&
         propertySchema === schema.properties.OPT_VAR &&
@@ -167,7 +164,7 @@ New Value.....: ${commonConvert.dateTime(container.REQ_VAR)}
   });
 
   it('works with missing values (return custom default)', (): void => {
-    const values: EnvSchemaPartialValues<S> = {};
+    const values: Partial<V> = {};
     const container: Record<string, string | undefined> = {};
     const convert = createConvert(schema, schemaProperties(schema), {
       OPT_VAR: (
@@ -175,8 +172,8 @@ New Value.....: ${commonConvert.dateTime(container.REQ_VAR)}
         propertySchema: JSONSchema7,
         key: string,
         allSchema: JSONSchema7,
-        initialValues: EnvSchemaPartialValues<S>,
-        errors: EnvSchemaMaybeErrors<S>,
+        initialValues: Partial<V>,
+        errors: EnvSchemaMaybeErrors<typeof schema>,
       ): bigint | undefined =>
         typeof value === 'string' &&
         propertySchema === schema.properties.OPT_VAR &&
@@ -222,14 +219,14 @@ New Value.....: ${new Date(0)}
   });
 
   it('removes properties converted to undefined', (): void => {
-    const values: EnvSchemaPartialValues<S> = {
+    const values = {
       OPT_VAR: '0x1fffffffffffff',
       REQ_VAR: '2021-01-02T12:34:56.000Z',
-    };
+    } as const satisfies V;
     const container: Record<string, string | undefined> = {
       OPT_VAR: '0x1fffffffffffff',
       REQ_VAR: '2021-01-02T12:34:56.000Z',
-    };
+    } as const satisfies V;
     const convert = createConvert(schema, schemaProperties(schema), {
       OPT_VAR: (): bigint | undefined => undefined,
       REQ_VAR: (): Date | undefined => undefined,
@@ -255,14 +252,14 @@ New Value.....: ${new Date(0)}
   });
 
   it('removes properties that conversion did throw', (): void => {
-    const values: EnvSchemaPartialValues<S> = {
+    const values = {
       OPT_VAR: '0x1fffffffffffff',
       REQ_VAR: '2021-01-02T12:34:56.000Z',
-    };
+    } as const satisfies V;
     const container: Record<string, string | undefined> = {
       OPT_VAR: '0x1fffffffffffff',
       REQ_VAR: '2021-01-02T12:34:56.000Z',
-    };
+    } as const satisfies V;
     const error = new Error('forced error');
     const convert = createConvert(schema, schemaProperties(schema), {
       OPT_VAR: (): bigint => {
@@ -303,7 +300,7 @@ New Value.....: ${new Date(0)}
       },
       type: 'object',
     } as const;
-    const values: EnvSchemaPartialValues<typeof schemaNoRequired> = {};
+    const values: TypeFromJSONSchema<typeof schemaNoRequired> = {};
     const container: Record<string, string | undefined> = {};
     const convert = createConvert(
       schemaNoRequired,

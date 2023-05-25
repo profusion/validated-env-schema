@@ -1,13 +1,13 @@
 import Ajv, { ErrorObject } from 'ajv';
+import type { TypeFromJSONSchema } from '@profusion/json-schema-to-typescript-definitions';
 
 import type {
+  BaseEnvParsed,
   BaseEnvSchema,
   EnvSchemaCustomPostValidators,
   EnvSchemaMaybeErrors,
-  EnvSchemaPostValidateFn,
   EnvSchemaProperties,
-  EnvSchemaPropertyValue,
-  EnvSchemaPartialValues,
+  KeyOf,
 } from './types';
 
 import { addErrors, assertIsError } from './errors';
@@ -42,60 +42,65 @@ try {
 }
 
 // DO NOT THROW HERE!
-type EnvSchemaValidate<S extends BaseEnvSchema> = (
-  value: EnvSchemaPartialValues<S>,
+type EnvSchemaValidate<
+  S extends BaseEnvSchema,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+> = (
+  value: Partial<V>,
   errors: EnvSchemaMaybeErrors<S>,
-) => [EnvSchemaPartialValues<S>, EnvSchemaMaybeErrors<S>];
+) => [Partial<V>, EnvSchemaMaybeErrors<S>];
 
-const createPostValidation = <S extends BaseEnvSchema>(
+const createPostValidation = <
+  S extends BaseEnvSchema,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+>(
   schema: S,
   properties: Readonly<EnvSchemaProperties<S>>,
-  customize: EnvSchemaCustomPostValidators<S>,
-): EnvSchemaValidate<S> => {
+  customize: EnvSchemaCustomPostValidators<S, V>,
+): EnvSchemaValidate<S, V> => {
   const postValidatedProperties = properties.filter(
     ([key]) => customize[key] !== undefined,
   );
   return (
-    values: EnvSchemaPartialValues<S>,
+    values: Partial<V>,
     initialErrors: EnvSchemaMaybeErrors<S>,
-  ): [EnvSchemaPartialValues<S>, EnvSchemaMaybeErrors<S>] => {
+  ): [Partial<V>, EnvSchemaMaybeErrors<S>] => {
     let errors = initialErrors;
     postValidatedProperties.forEach(([key, propertySchema]) => {
-      type K = typeof key;
       // it was filtered before
-      const validate = customize[key] as EnvSchemaPostValidateFn<S, K>;
+      const validate = customize[key] as NonNullable<
+        (typeof customize)[string]
+      >;
       const oldValue = values[key];
       try {
         const newValue = validate(
-          oldValue as EnvSchemaPropertyValue<S, K> | undefined,
+          oldValue,
           propertySchema,
           key,
           schema,
           values,
           errors,
         );
-        if (oldValue !== newValue) {
-          if (newValue === undefined) {
-            dbg(
-              () =>
-                `Post validation of "${key}" removed property. Was ${JSON.stringify(
-                  oldValue,
-                )}`,
-            );
-            // eslint-disable-next-line no-param-reassign
-            delete values[key];
-          } else {
-            dbg(
-              () =>
-                `\
+        if (oldValue !== newValue && newValue === undefined) {
+          dbg(
+            () =>
+              `Post validation of "${key}" removed property. Was ${JSON.stringify(
+                oldValue,
+              )}`,
+          );
+          // eslint-disable-next-line no-param-reassign
+          delete values[key];
+        } else {
+          dbg(
+            () =>
+              `\
 Post validation of "${key}" changed property from:
 Previous Value: ${JSON.stringify(oldValue)}
 New Value.....: ${JSON.stringify(newValue)}
 `,
-            );
-            // eslint-disable-next-line no-param-reassign
-            values[key] = newValue;
-          }
+          );
+          // eslint-disable-next-line no-param-reassign
+          values[key] = newValue;
         }
       } catch (e) {
         dbg(
@@ -114,33 +119,39 @@ New Value.....: ${JSON.stringify(newValue)}
   };
 };
 
-const noPostValidation = <S extends BaseEnvSchema>(
-  values: EnvSchemaPartialValues<S>,
+const noPostValidation = <
+  S extends BaseEnvSchema,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+>(
+  values: Partial<V>,
   errors: EnvSchemaMaybeErrors<S>,
-): [EnvSchemaPartialValues<S>, EnvSchemaMaybeErrors<S>] => [values, errors];
+): [Partial<V>, EnvSchemaMaybeErrors<S>] => [values, errors];
 
 const createExceptionForAjvError = (ajvError: ErrorObject): Error =>
   new Ajv.ValidationError([ajvError]);
 
-const processAjvTopLevelError = <S extends BaseEnvSchema>(
+const processAjvTopLevelError = <
+  S extends BaseEnvSchema,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+>(
   schema: S,
-  key: Extract<keyof S['properties'], string>,
+  key: KeyOf<V>,
   _path: string[],
-  values: EnvSchemaPartialValues<S>,
+  values: Partial<V>,
   ajvError: ErrorObject,
 ): void => {
-  const defVal = schema.properties[key].default;
-  if (defVal !== undefined) {
+  const defaultValue = schema.properties[key].default as V[KeyOf<V>];
+  if (defaultValue) {
     dbg(
       () =>
         `Ajv failed the validation of "${key}": ${ajv.errorsText([
           ajvError,
-        ])}. Use default ${JSON.stringify(defVal)}. Was ${JSON.stringify(
+        ])}. Use default ${JSON.stringify(defaultValue)}. Was ${JSON.stringify(
           values[key],
         )}`,
     );
     // eslint-disable-next-line no-param-reassign
-    values[key] = defVal as EnvSchemaPropertyValue<S, typeof key>;
+    values[key] = defaultValue;
     return;
   }
 
@@ -159,11 +170,14 @@ const processAjvTopLevelError = <S extends BaseEnvSchema>(
 // array, const, oneOf/allOf/anyOf/not...
 const processAjvNestedError = processAjvTopLevelError;
 
-const processSingleAjvError = <S extends BaseEnvSchema>(
+const processSingleAjvError = <
+  S extends BaseEnvSchema,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+>(
   schema: S,
-  key: Extract<keyof S['properties'], string>,
+  key: KeyOf<V>,
   path: string[],
-  values: EnvSchemaPartialValues<S>,
+  values: Partial<V>,
   ajvError: ErrorObject,
   errors: EnvSchemaMaybeErrors<S>,
 ): EnvSchemaMaybeErrors<S> => {
@@ -187,10 +201,13 @@ const processSpuriousAjvError = <S extends BaseEnvSchema>(
   return addErrors(errors, '$other', createExceptionForAjvError(ajvError));
 };
 
-const processAjvErrors = <S extends BaseEnvSchema>(
+const processAjvErrors = <
+  S extends BaseEnvSchema,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+>(
   schema: Readonly<S>,
-  schemaKeys: Readonly<Set<Extract<keyof S['properties'], string>>>,
-  values: EnvSchemaPartialValues<S>,
+  schemaKeys: Readonly<Set<KeyOf<V>>>,
+  values: Partial<V>,
   ajvErrors: readonly ErrorObject[],
 ): EnvSchemaMaybeErrors<S> =>
   ajvErrors.reduce(
@@ -201,7 +218,7 @@ const processAjvErrors = <S extends BaseEnvSchema>(
       /* istanbul ignore else */
       if (ajvError.instancePath.startsWith('/')) {
         const path = ajvError.instancePath.substr(1).split('/');
-        const key = path[0] as Extract<keyof S['properties'], string>;
+        const key = path[0];
         /* istanbul ignore else */
         if (schemaKeys.has(key)) {
           return processSingleAjvError(
@@ -233,11 +250,14 @@ const processAjvErrors = <S extends BaseEnvSchema>(
     undefined,
   );
 
-export default <S extends BaseEnvSchema>(
+export default <
+  S extends BaseEnvSchema,
+  V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+>(
   schema: Readonly<S>,
   properties: Readonly<EnvSchemaProperties<S>>,
-  customize: EnvSchemaCustomPostValidators<S> | undefined,
-): EnvSchemaValidate<S> => {
+  customize: EnvSchemaCustomPostValidators<S, V> | undefined,
+): EnvSchemaValidate<S, V> => {
   const validate = ajv.compile(schema);
   const postValidate =
     customize === undefined
@@ -245,14 +265,19 @@ export default <S extends BaseEnvSchema>(
       : createPostValidation(schema, properties, customize);
   const schemaKeys = new Set(properties.map(([key]) => key));
   return (
-    values: EnvSchemaPartialValues<S>,
+    values: Partial<V>,
     initialErrors: EnvSchemaMaybeErrors<S>,
-  ): [EnvSchemaPartialValues<S>, EnvSchemaMaybeErrors<S>] => {
+  ): [Partial<V>, EnvSchemaMaybeErrors<S>] => {
     let errors = initialErrors;
     if (!validate(values)) {
       /* istanbul ignore else */
       if (validate.errors && validate.errors.length > 0) {
-        errors = processAjvErrors(schema, schemaKeys, values, validate.errors);
+        errors = processAjvErrors<S, V>(
+          schema,
+          schemaKeys,
+          values,
+          validate.errors,
+        );
       }
     }
     return postValidate(values, errors);

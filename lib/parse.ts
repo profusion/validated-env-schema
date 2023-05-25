@@ -1,16 +1,20 @@
 import type {
   JSONSchema7Definition,
   JSONSchema7Type,
+  TypeFromJSONSchema,
 } from '@profusion/json-schema-to-typescript-definitions';
 
 import dbg from './dbg';
 
-import { EnvSchemaMaybeErrors, EnvSchemaProperties } from './types';
+import {
+  BaseEnvParsed,
+  EnvSchemaMaybeErrors,
+  EnvSchemaProperties,
+} from './types';
 import type {
   BaseEnvSchema,
   EnvSchemaCustomParsers,
   EnvSchemaParserFn,
-  EnvSchemaPartialValues,
 } from './types';
 import { addErrors, assertIsError } from './errors';
 
@@ -30,34 +34,34 @@ const defaultParser = (
 // Do its best to parse values, however Ajv will handle most
 // of the specific conversions itself during validate()
 // DO NOT THROW HERE!
-type EnvSchemaParse<S extends BaseEnvSchema> = (
+type EnvSchemaParse<S extends BaseEnvSchema, V extends BaseEnvParsed<S>> = (
   container: Readonly<Record<string, string | undefined>>,
-) => [EnvSchemaPartialValues<S>, EnvSchemaMaybeErrors<S>];
+) => [Partial<V>, EnvSchemaMaybeErrors<S>];
 
-export default <S extends BaseEnvSchema>(
+export default <
+    S extends BaseEnvSchema,
+    V extends BaseEnvParsed<S> = TypeFromJSONSchema<S>,
+  >(
     schema: Readonly<S>,
     properties: Readonly<EnvSchemaProperties<S>>,
-    customize: EnvSchemaCustomParsers<S> | undefined,
-  ): EnvSchemaParse<S> =>
+    customize: EnvSchemaCustomParsers<S, V> | undefined,
+  ): EnvSchemaParse<S, V> =>
   (
     container: Readonly<Record<string, string | undefined>>,
-  ): [EnvSchemaPartialValues<S>, EnvSchemaMaybeErrors<S>] =>
-    properties.reduce(
+  ): [Partial<V>, EnvSchemaMaybeErrors<S>] =>
+    properties.reduce<[Partial<V>, EnvSchemaMaybeErrors<S>]>(
       (
         [values, initialErrors],
         [key, propertySchema],
-      ): [EnvSchemaPartialValues<S>, EnvSchemaMaybeErrors<S>] => {
-        type K = typeof key;
-        const str = container[key];
+      ): [Partial<V>, EnvSchemaMaybeErrors<S>] => {
+        const containerKey = container[key];
         let errors = initialErrors;
-        if (typeof str === 'string') {
-          const parser =
-            (customize && customize[key]) ||
-            (defaultParser as unknown as EnvSchemaParserFn<S, K>);
+        if (typeof containerKey === 'string') {
+          const parser = (customize?.[key] ||
+            defaultParser) as EnvSchemaParserFn<S, V, typeof key>;
           try {
-            const value = parser(str, propertySchema, key, schema);
             // eslint-disable-next-line no-param-reassign
-            values[key] = value;
+            values[key] = parser(containerKey, propertySchema, key, schema);
           } catch (e) {
             dbg(`failed to parse "${key}": ${e}`, e);
             assertIsError(e);
@@ -66,5 +70,5 @@ export default <S extends BaseEnvSchema>(
         }
         return [values, errors];
       },
-      [{}, undefined] as [EnvSchemaPartialValues<S>, EnvSchemaMaybeErrors<S>],
+      [{}, undefined],
     );
